@@ -42,6 +42,8 @@ df.panel[is.na(df.panel)] <- 0
 # drop column X 
 df.panel = subset(df.panel, select = -c(X) )
 
+
+
 ```
 
 
