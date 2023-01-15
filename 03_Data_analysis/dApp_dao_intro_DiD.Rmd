@@ -1,0 +1,293 @@
+---
+title: "DApp_intro_dao_DiD"
+author: "Daniel Obermeier"
+date: '2023-01-12'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+## Load libraries
+```{r}
+
+
+setwd("C:/Users/DanielObermeier/OneDrive/Dokumente/PostDoc/01 Projects/01 Decentralized Governance/Code/DAO research/03_Data_analysis")
+library(did)
+library(zoo)
+library(dplyr)
+library(sandwich)
+library(lmtest)
+library(fixest)
+library(plm)
+library(tidyverse)
+library(bacondecomp)
+
+```
+
+
+## Import the data set
+
+```{r}
+#read csv
+df.panel <- read.csv("dapp_dao_usage_panel.csv", sep=";", header=TRUE)
+
+# fill nas
+df.panel[is.na(df.panel)] <- 0
+
+
+# drop column X 
+df.panel = subset(df.panel, select = -c(X) )
+
+```
+
+
+## Data preprocessing
+
+Convert dates 
+```{r}
+
+# convert date string to date type
+df.panel$date <- as.Date(df.panel$date_key, format="%Y-%m-%d")
+
+# create year quarter variable for grouping
+df.panel$yearqtr <- as.yearqtr(df.panel$date, format = "%Y-%m-%d")
+
+
+# convert first treatment to quarter
+# convert date string to date type
+df.panel$start_first_prop <- as.Date(df.panel$start_first_prop, format="%Y-%m-%d")
+
+# create year quarter variable for grouping
+df.panel$treat_yearqtr <- as.yearqtr(df.panel$start_first_prop, format = "%Y-%m-%d")
+
+```
+
+
+Remove duplicate rows 
+```{r}
+
+df.panel <- df.panel %>% distinct(dapp_name, date_key, .keep_all = TRUE)
+
+```
+
+
+
+Filter dApps with no category
+```{r}
+
+
+# filter row with empty categories (might be caused by special characters)
+df.panel <- df.panel %>% filter(category != "")
+
+
+```
+
+```{r}
+
+df.panel %>% group_by(dapp_name) %>% summarise(obs = n()) %>% arrange(desc(obs))
+
+```
+
+
+Transform variables
+```{r}
+
+df.panel$transactions_log <- log(df.panel$transactions +1)
+
+```
+
+
+
+
+Aggregate panel on quarterly level
+```{r}
+
+
+
+
+df.panel_yqtr <- df.panel %>%  group_by(yearqtr, dapp_name, treat_yearqtr, category) %>%
+                                        summarise(sum_txn = sum(transactions),
+                                                  avg_txn = mean(transactions),
+                                                  avg_eoa = mean(eoa),
+                                                  sum_value = sum(SUM_txn_value_GWEI),
+                                                  avg_value = mean(AVG_txn_value_GWEI),
+                                                  )
+
+
+
+# convert yearqtr string into int (for did package)
+df.panel_yqtr <- df.panel_yqtr %>% mutate(yearqtr_int = case_when(yearqtr == "2020 Q1" ~ 1,
+                                                                  yearqtr == "2020 Q2" ~ 2,
+                                                                  yearqtr == "2020 Q3" ~ 3,
+                                                                  yearqtr == "2020 Q4" ~ 4,
+                                                                  yearqtr == "2021 Q1" ~ 5,
+                                                                  yearqtr == "2021 Q2" ~ 6,
+                                                                  yearqtr == "2021 Q3" ~ 7,
+                                                                  yearqtr == "2021 Q4" ~ 8,
+                                                                  yearqtr == "2022 Q1" ~ 9,
+                                                                  yearqtr == "2022 Q2" ~ 10,
+                                                                  yearqtr == "2022 Q3" ~ 11,
+                                                                  yearqtr == "2022 Q4" ~ 12))
+                                                            
+
+
+# fill NaNs 
+df.panel_yqtr$treat_yearqtr <- as.character(df.panel_yqtr$treat_yearqtr)
+df.panel_yqtr["treat_yearqtr"][is.na(df.panel_yqtr["treat_yearqtr"])] <- "empty" # not possible to fill it directly with 0 as case_when requires same type
+
+
+df.panel_yqtr <- df.panel_yqtr %>% mutate(treat_yearqtr_int = case_when(treat_yearqtr == "empty" ~ 0,
+                                                                  treat_yearqtr == "2020 Q1" ~ 1,
+                                                                  treat_yearqtr == "2020 Q2" ~ 2,
+                                                                  treat_yearqtr == "2020 Q3" ~ 3,
+                                                                  treat_yearqtr == "2020 Q4" ~ 4,
+                                                                  treat_yearqtr == "2021 Q1" ~ 5,
+                                                                  treat_yearqtr == "2021 Q2" ~ 6,
+                                                                  treat_yearqtr == "2021 Q3" ~ 7,
+                                                                  treat_yearqtr == "2021 Q4" ~ 8,
+                                                                  treat_yearqtr == "2022 Q1" ~ 9,
+                                                                  treat_yearqtr == "2022 Q2" ~ 10,
+                                                                  treat_yearqtr == "2022 Q3" ~ 11,
+                                                                  treat_yearqtr == "2022 Q4" ~ 12))
+
+
+
+# add a numeric id (required for did package)
+df.panel_yqtr$dapp_id <- with(df.panel_yqtr, as.integer(factor(dapp_name, levels = unique(dapp_name))))
+
+
+df.panel_test <- df.panel_yqtr %>% select(dapp_name) #, dapp_name, transactions, treat_yearqtr_int, category) 
+
+```
+
+
+
+
+
+
+
+# TWFE DID (standard approach)
+Problem: This does not account for heterogeneous treatment effects accross groups and periods and can lead to an inconsistent estimate of the average treatment effect. This problem is caused as TWFE estimates some weighted average of the treatment effects and due to heterogenity of these treatment effects some weighted treatment effects can be negative. 
+
+
+https://tidy-finance.org/difference-in-differences.html (estimation with fixest)
+https://theeffectbook.net/ch-DifferenceinDifference.html (on diff-in-diff estimation) -> explains approaches that account for heterogenious treatment effects
+
+```{r}
+
+
+# create an unfiltered panel date frame 
+pdf.regress <- pdata.frame(df.panel, index = c("dapp_name","date"))
+
+
+
+```
+
+
+```{r}
+
+twfe <- plm(log(transactions+1) ~ 
+              intro_dao_start_prop +
+              factor(category),
+              data = pdf.regress, model="within", effect ="twoways") 
+
+summary(twfe)
+
+
+
+se.plm.test <- coeftest(twfe, vcov=vcovHC(twfe,type="HC0",cluster="group"))
+se.plm.test
+
+
+
+# fe model with fixest
+model_with_fe <- feols(
+  fml = log(transactions+1) ~ intro_dao_start_prop | dapp_name + date,
+  panel.id=c('dapp_name', 'date'), 
+  vcov = "NW", #alternative idd, cluster, or twoway, NW
+  data = df.panel
+)
+
+summary(model_with_fe)
+
+```
+
+
+
+## Decomposition of TWFE in all 2x2 estimates and their weights
+https://cran.r-project.org/web/packages/bacondecomp/vignettes/bacon.html
+```{r}
+
+
+
+df.panel$date_int <- as.integer(as.numeric(df.panel$date))
+
+
+df.panel.defi <- df.panel %>% filter(category == "DeFi")
+
+
+df_bacon <- bacon(transactions_log ~ intro_dao_start_prop,
+                  data = df.panel.defi,
+                  id_var = "dapp_name",
+                  time_var = "date_int")
+
+df_bacon
+
+```
+
+
+
+
+# DiD with multiple time periods (Callaway and Sant'Anna 2021)
+
+Link to paper: https://doi.org/10.1016/j.jeconom.2020.12.001
+Link to tutorial: https://cran.r-project.org/web/packages/did/vignettes/did-basics.html
+
+
+
+## Compute DiD
+
+```{r}
+
+mw.attgt <- att_gt(yname = "avg_eoa",
+                   gname = "treat_yearqtr_int",
+                   idname = "dapp_id",
+                   tname = "yearqtr_int",
+                   xformla = ~1,
+                   data = df.panel_yqtr,
+                   )
+
+summary(mw.attgt)
+
+```
+
+
+### Aggregate treatment effects
+
+```{r}
+
+mw.simple <- aggte(mw.attgt, type = "simple")
+summary(mw.simple)
+
+#ggdid(mw.simple, ylim = c(-.3,.3))
+
+
+mw.dyn <- aggte(mw.attgt, type = "dynamic")
+summary(mw.dyn)
+
+ggdid(mw.dyn, ylim = c(-.3,.3))
+
+
+```
+
+
+## Analysis by category of dApps
+
+```{r}
+
+```
+
