@@ -14,8 +14,6 @@ knitr::opts_chunk$set(echo = TRUE)
 ## Load libraries
 ```{r}
 
-
-setwd("C:/Users/DanielObermeier/OneDrive/Dokumente/PostDoc/01 Projects/01 Decentralized Governance/Code/DAO research/03_Data_analysis")
 library(did)
 library(zoo)
 library(dplyr)
@@ -25,6 +23,8 @@ library(fixest)
 library(plm)
 library(tidyverse)
 library(bacondecomp)
+library(modelsummary) # alternative to stargazer
+library(etable)
 
 ```
 
@@ -41,7 +41,6 @@ df.panel[is.na(df.panel)] <- 0
 
 # drop column X 
 df.panel = subset(df.panel, select = -c(X) )
-
 
 
 ```
@@ -68,29 +67,20 @@ df.panel$treat_yearqtr <- as.yearqtr(df.panel$start_first_prop, format = "%Y-%m-
 
 ```
 
-
-Remove duplicate rows 
+Clean the data 
+ 
 ```{r}
 
+# Remove duplicate rows
 df.panel <- df.panel %>% distinct(dapp_name, date_key, .keep_all = TRUE)
 
-```
+# use this command to find duplicated observations
+#df.panel %>% group_by(dapp_name) %>% summarise(obs = n()) %>% arrange(desc(obs))
 
 
-
-Filter dApps with no category
-```{r}
-
-
+# Filter dApps with no category
 # filter row with empty categories (might be caused by special characters)
 df.panel <- df.panel %>% filter(category != "")
-
-
-```
-
-```{r}
-
-df.panel %>% group_by(dapp_name) %>% summarise(obs = n()) %>% arrange(desc(obs))
 
 ```
 
@@ -99,6 +89,8 @@ Transform variables
 ```{r}
 
 df.panel$transactions_log <- log(df.panel$transactions +1)
+df.panel$eoa_log <- log(df.panel$eoa +1)
+df.panel$SUM_txn_value_GWEI_log <- log(df.panel$SUM_txn_value_GWEI +1)
 
 ```
 
@@ -179,18 +171,12 @@ Problem: This does not account for heterogeneous treatment effects accross group
 https://tidy-finance.org/difference-in-differences.html (estimation with fixest)
 https://theeffectbook.net/ch-DifferenceinDifference.html (on diff-in-diff estimation) -> explains approaches that account for heterogenious treatment effects
 
+## TWFE with PLM package
 ```{r}
-
 
 # create an unfiltered panel date frame 
 pdf.regress <- pdata.frame(df.panel, index = c("dapp_name","date"))
 
-
-
-```
-
-
-```{r}
 
 twfe <- plm(log(transactions+1) ~ 
               intro_dao_start_prop +
@@ -199,22 +185,58 @@ twfe <- plm(log(transactions+1) ~
 
 summary(twfe)
 
-
-
 se.plm.test <- coeftest(twfe, vcov=vcovHC(twfe,type="HC0",cluster="group"))
 se.plm.test
 
+```
 
+## TWFE with fixest package
+Fixest documentation for OLS: https://lrberge.github.io/fixest/reference/feols.html, https://rdrr.io/cran/fixest/man/feols.html
+```{r}
 
 # fe model with fixest
-model_with_fe <- feols(
-  fml = log(transactions+1) ~ intro_dao_start_prop | dapp_name + date,
+model_with_fe_1 <- feols(
+  fml = transactions_log ~ intro_dao_start_prop | dapp_name + date,
   panel.id=c('dapp_name', 'date'), 
   vcov = "NW", #alternative idd, cluster, or twoway, NW
   data = df.panel
 )
 
-summary(model_with_fe)
+model_with_fe_2 <- feols(
+  fml = eoa_log ~ intro_dao_start_prop | dapp_name + date,
+  panel.id=c('dapp_name', 'date'), 
+  vcov = "NW", #alternative idd, cluster, or twoway, NW
+  data = df.panel
+)
+
+
+model_with_fe_3 <- feols(
+  fml = transactions_log ~ intro_dao_start_prop | dapp_name + date,
+  panel.id=c('dapp_name', 'date'), 
+  vcov = "NW", #alternative idd, cluster, or twoway, NW
+  data = df.panel
+)
+
+model_with_fe_4 <- feols(
+  fml = eoa_log ~ intro_dao_start_prop | dapp_name + date,
+  panel.id=c('dapp_name', 'date'), 
+  vcov = "NW", #alternative idd, cluster, or twoway, NW
+  data = df.panel
+)
+
+
+
+# create table output
+#modelsummary(model_with_fe)
+
+
+# data.frame output
+df <- etable(list(model_with_fe), tex=FALSE, dict = c(intro_dao_start_prop = "DiD_start"))
+
+
+df
+# Latex output
+#etable(list(model1, model2), tex=TRUE)
 
 ```
 
