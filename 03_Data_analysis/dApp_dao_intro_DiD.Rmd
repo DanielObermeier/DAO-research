@@ -63,6 +63,8 @@ df.panel$date <- as.Date(df.panel$date_key, format="%Y-%m-%d")
 df.panel$yearqtr <- as.yearqtr(df.panel$date, format = "%Y-%m-%d")
 
 
+df.panel$yearmonth <- format(as.Date(df.panel$date), "%Y-%m")
+
 # convert first treatment to quarter
 # convert date string to date type
 df.panel$start_first_prop <- as.Date(df.panel$start_first_prop, format="%Y-%m-%d")
@@ -128,62 +130,90 @@ Aggregate panel on quarterly level
 df.panel_yqtr <- df.panel %>%  group_by(yearqtr, dapp_name, treat_yearqtr, category) %>%
                                         summarise(sum_txn = sum(transactions),
                                                   avg_txn = mean(transactions),
+                                                  sum_txn_log = sum(transactions_log),
+                                                  avg_txn_log = mean(transactions_log),
                                                   avg_eoa = mean(eoa),
+                                                  avf_eoa_log = mean(eoa_log),
                                                   sum_value = sum(SUM_txn_value_GWEI),
                                                   avg_value = mean(AVG_txn_value_GWEI),
+                                                  sum_value_log = sum(SUM_txn_value_GWEI_log),
+                                                  avg_value_log = mean(SUM_txn_value_GWEI_log)
                                                   )
 
 
 
 # convert yearqtr string into int (for did package)
-df.panel_yqtr <- df.panel_yqtr %>% mutate(yearqtr_int = case_when(yearqtr == "2020 Q1" ~ 1,
-                                                                  yearqtr == "2020 Q2" ~ 2,
-                                                                  yearqtr == "2020 Q3" ~ 3,
-                                                                  yearqtr == "2020 Q4" ~ 4,
-                                                                  yearqtr == "2021 Q1" ~ 5,
-                                                                  yearqtr == "2021 Q2" ~ 6,
-                                                                  yearqtr == "2021 Q3" ~ 7,
-                                                                  yearqtr == "2021 Q4" ~ 8,
-                                                                  yearqtr == "2022 Q1" ~ 9,
-                                                                  yearqtr == "2022 Q2" ~ 10,
-                                                                  yearqtr == "2022 Q3" ~ 11,
-                                                                  yearqtr == "2022 Q4" ~ 12))
-                                                            
+df.panel_yqtr$yearqtr_int <- as.integer(as.factor(df.panel_yqtr$yearqtr))
+
+
+# create treatment group variable that indicates in which period the unit got treated (treatment group)
+df.panel_yqtr_grouped <- df.panel_yqtr %>% group_by(yearqtr, yearqtr_int) %>% summarise() # get continuous integer for every year month
+df.panel_yqtr <- merge(df.panel_yqtr, df.panel_yqtr_grouped, by.x = c("treat_yearqtr"), by.y = c("yearqtr"), all.x = TRUE)
+
+# rename variables
+names(df.panel_yqtr)[names(df.panel_yqtr) == "yearqtr_int.x"] <- "yearqtr_int"
+names(df.panel_yqtr)[names(df.panel_yqtr) == "yearqtr_int.y"] <- "treated_yearqtr_int"
 
 
 # fill NaNs 
-df.panel_yqtr$treat_yearqtr <- as.character(df.panel_yqtr$treat_yearqtr)
-df.panel_yqtr["treat_yearqtr"][is.na(df.panel_yqtr["treat_yearqtr"])] <- "empty" # not possible to fill it directly with 0 as case_when requires same type
-
-
-df.panel_yqtr <- df.panel_yqtr %>% mutate(treat_yearqtr_int = case_when(treat_yearqtr == "empty" ~ 0,
-                                                                  treat_yearqtr == "2020 Q1" ~ 1,
-                                                                  treat_yearqtr == "2020 Q2" ~ 2,
-                                                                  treat_yearqtr == "2020 Q3" ~ 3,
-                                                                  treat_yearqtr == "2020 Q4" ~ 4,
-                                                                  treat_yearqtr == "2021 Q1" ~ 5,
-                                                                  treat_yearqtr == "2021 Q2" ~ 6,
-                                                                  treat_yearqtr == "2021 Q3" ~ 7,
-                                                                  treat_yearqtr == "2021 Q4" ~ 8,
-                                                                  treat_yearqtr == "2022 Q1" ~ 9,
-                                                                  treat_yearqtr == "2022 Q2" ~ 10,
-                                                                  treat_yearqtr == "2022 Q3" ~ 11,
-                                                                  treat_yearqtr == "2022 Q4" ~ 12))
-
+df.panel_yqtr["treated_yearqtr_int"][is.na(df.panel_yqtr["treated_yearqtr_int"])] <- 0 # not possible to fill it directly with 0 as case_when requires same type
 
 
 # add a numeric id (required for did package)
 df.panel_yqtr$dapp_id <- with(df.panel_yqtr, as.integer(factor(dapp_name, levels = unique(dapp_name))))
 
 
-df.panel_test <- df.panel_yqtr %>% select(dapp_name) #, dapp_name, transactions, treat_yearqtr_int, category) 
+#df.panel_test <- df.panel_yqtr %>% select(dapp_name) #, dapp_name, transactions, treat_yearqtr_int, category) 
 
 ```
 
 
 
-# Descriptive statistics
+Aggregate panel on year month level
+```{r}
+# group dataset by month
+df.panel_ymonth <- df.panel %>%  group_by(yearmonth, dapp_name, treat_yearmonth, category) %>%
+                                        summarise(sum_txn = sum(transactions),
+                                                  avg_txn = mean(transactions),
+                                                  sum_txn_log = sum(transactions_log),
+                                                  avg_txn_log = mean(transactions_log),
+                                                  avg_eoa = mean(eoa),
+                                                  avf_eoa_log = mean(eoa_log),
+                                                  sum_value = sum(SUM_txn_value_GWEI),
+                                                  avg_value = mean(AVG_txn_value_GWEI),
+                                                  sum_value_log = sum(SUM_txn_value_GWEI_log),
+                                                  avg_value_log = mean(SUM_txn_value_GWEI_log)
+                                                  )
 
+
+df.panel_ymonth$yearmonth_int <- as.integer(as.factor(df.panel_ymonth$yearmonth))
+
+
+# create treatment group variable that indicates in which period the unit got treated (treatment group)
+df.panel_ymonth_grouped <- df.panel_ymonth %>% group_by(yearmonth, yearmonth_int) %>% summarise() # get continuous integer for every year month
+df.panel_ymonth <- merge(df.panel_ymonth, df.panel_ymonth_grouped, by.x = c("treat_yearmonth"), by.y = c("yearmonth"), all.x = TRUE)
+
+# rename variables
+names(df.panel_ymonth)[names(df.panel_ymonth) == "yearmonth_int.x"] <- "yearqtr_int"
+names(df.panel_ymonth)[names(df.panel_ymonth) == "yearmonth_int.y"] <- "treat_yearmonth_int"
+
+
+# fill NaNs 
+df.panel_ymonth["treat_yearmonth_int"][is.na(df.panel_ymonth["treat_yearmonth_int"])] <- 0 # not possible to fill it directly with 0 as case_when requires same type
+
+
+# add a numeric id (required for did package)
+df.panel_ymonth$dapp_id <- with(df.panel_ymonth, as.integer(factor(dapp_name, levels = unique(dapp_name))))
+
+
+
+```
+
+
+
+
+
+# Descriptive statistics
 ```{r}
 
 # treated dapps per month
