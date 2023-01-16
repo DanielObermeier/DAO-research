@@ -67,10 +67,30 @@ df.panel$yearqtr <- as.yearqtr(df.panel$date, format = "%Y-%m-%d")
 # convert date string to date type
 df.panel$start_first_prop <- as.Date(df.panel$start_first_prop, format="%Y-%m-%d")
 
+
+
+```
+
+
+
+Create treatment dummies and treatment month and quarter
+```{r}
+
 # create year quarter variable for grouping
 df.panel$treat_yearqtr <- as.yearqtr(df.panel$start_first_prop, format = "%Y-%m-%d")
 
+# created variable that indicates in which month of a year a dapp introduced a DAO
+df.panel$treat_yearmonth <- format(as.Date(df.panel$start_first_prop), "%Y-%m")
+
+
+# create a variables that indicates if a dApp was treated
+df.panel <- df.panel %>% mutate(treated = case_when(!is.na(start_first_prop)~1,
+                                                        is.na(start_first_prop)~0))
+
+
 ```
+
+
 
 Clean the data 
 ```{r}
@@ -99,22 +119,10 @@ df.panel$SUM_txn_value_GWEI_log <- log(df.panel$SUM_txn_value_GWEI +1)
 ```
 
 
-Create treatment dummies
-```{r}
-
-df.panel <- df.panel %>% mutate(treated = case_when(!is.na(start_first_prop)~1,
-                                                        is.na(start_first_prop)~0))
-
-
-```
-
-
 
 
 Aggregate panel on quarterly level
 ```{r}
-
-
 
 
 df.panel_yqtr <- df.panel %>%  group_by(yearqtr, dapp_name, treat_yearqtr, category) %>%
@@ -178,26 +186,22 @@ df.panel_test <- df.panel_yqtr %>% select(dapp_name) #, dapp_name, transactions,
 
 ```{r}
 
-# how many treated dApps per group 
-#df.panel %>% group_by(dapp_name) %>% summarise(treated = mean(intro_dao_start_prop)) 
- # %>% group_by(category) %>% summarise(obs = n(), treated = sum(treated)) %>% arrange(desc(obs))
-
+# treated dapps per month
 df.panel.grouped_category <- df.panel %>% group_by(dapp_name, category) %>% summarise(treated = mean(treated)) %>% group_by(category) %>% summarise(treated = sum(treated)) %>% arrange(desc(treated))
+df.panel.grouped_category %>% ggplot(aes(x = reorder(category, -treated), y = treated, label = treated)) + geom_bar(stat = "identity", fill = "blue") + geom_text(size = 3, vjust=-0.5) + theme_tufte() +theme(axis.text.x = element_text(size = 18, angle = 90, vjust = 0.5, hjust=1)) # + theme_tufte()
 
-df.panel.grouped_category %>% ggplot(aes(x = reorder(category, -treated), y = treated, lable = treated)) + geom_bar(stat = "identity", fill = "blue") + theme_tufte()
+# treated units by month 
+df.panel.grouped_month <- df.panel %>% filter(!is.na(treat_yearqtr)) %>% group_by(dapp_name, treat_yearqtr) %>% summarise(treated = mean(treated)) %>% group_by(treat_yearqtr) %>% summarise(treated = sum(treated)) 
+df.panel.grouped_month %>% ggplot(aes(x = treat_yearqtr, y = treated, label = treated)) + geom_bar(stat = "identity", fill = "blue") + geom_text(size = 3, vjust=-0.5) + theme_tufte() +theme(axis.text.x = element_text(size = 15, angle = 90, vjust = 0.5, hjust=1))
+
+
+# treated units by month 
+df.panel.grouped_quarter <- df.panel %>% filter(!is.na(treat_yearmonth)) %>% group_by(dapp_name, treat_yearmonth) %>% summarise(treated = mean(treated)) %>% group_by(treat_yearmonth) %>% summarise(treated = sum(treated)) 
+df.panel.grouped_quarter %>% ggplot(aes(x = treat_yearmonth, y = treated, label = treated)) + geom_bar(stat = "identity", fill = "blue") + geom_text(size = 3, vjust=-0.5) + theme_tufte() +theme(axis.text.x = element_text(size = 15, angle = 90, vjust = 0.5, hjust=1))
+
+
 
 ```
-
-
-```{r}
-
-treated <- df.panel %>% group_by(dapp_name) %>% summarise(treated = mean(intro_dao_start_prop))
-
-treated <- df.panel %>% group_by(dapp_name) %>% summarise(treated = mean(intro_dao_start_prop))
-
-```
-
-
 
 
 
