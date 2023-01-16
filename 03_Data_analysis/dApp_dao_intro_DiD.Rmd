@@ -25,6 +25,8 @@ library(tidyverse)
 library(bacondecomp)
 library(modelsummary) # alternative to stargazer
 library(etable)
+library(ggplot2)
+library(ggthemes)
 
 ```
 
@@ -41,6 +43,9 @@ df.panel[is.na(df.panel)] <- 0
 
 # drop column X 
 df.panel = subset(df.panel, select = -c(X) )
+
+# rename variable
+names(df.panel)[names(df.panel) == "intro_dao_pro_prop"] <- "intro_dao_end_prop"
 
 
 ```
@@ -68,7 +73,6 @@ df.panel$treat_yearqtr <- as.yearqtr(df.panel$start_first_prop, format = "%Y-%m-
 ```
 
 Clean the data 
- 
 ```{r}
 
 # Remove duplicate rows
@@ -91,6 +95,16 @@ Transform variables
 df.panel$transactions_log <- log(df.panel$transactions +1)
 df.panel$eoa_log <- log(df.panel$eoa +1)
 df.panel$SUM_txn_value_GWEI_log <- log(df.panel$SUM_txn_value_GWEI +1)
+
+```
+
+
+Create treatment dummies
+```{r}
+
+df.panel <- df.panel %>% mutate(treated = case_when(!is.na(start_first_prop)~1,
+                                                        is.na(start_first_prop)~0))
+
 
 ```
 
@@ -160,6 +174,30 @@ df.panel_test <- df.panel_yqtr %>% select(dapp_name) #, dapp_name, transactions,
 
 
 
+# Descriptive statistics
+
+```{r}
+
+# how many treated dApps per group 
+#df.panel %>% group_by(dapp_name) %>% summarise(treated = mean(intro_dao_start_prop)) 
+ # %>% group_by(category) %>% summarise(obs = n(), treated = sum(treated)) %>% arrange(desc(obs))
+
+df.panel.grouped_category <- df.panel %>% group_by(dapp_name, category) %>% summarise(treated = mean(treated)) %>% group_by(category) %>% summarise(treated = sum(treated)) %>% arrange(desc(treated))
+
+df.panel.grouped_category %>% ggplot(aes(x = reorder(category, -treated), y = treated, lable = treated)) + geom_bar(stat = "identity", fill = "blue") + theme_tufte()
+
+```
+
+
+```{r}
+
+treated <- df.panel %>% group_by(dapp_name) %>% summarise(treated = mean(intro_dao_start_prop))
+
+treated <- df.panel %>% group_by(dapp_name) %>% summarise(treated = mean(intro_dao_start_prop))
+
+```
+
+
 
 
 
@@ -211,14 +249,14 @@ model_with_fe_2 <- feols(
 
 
 model_with_fe_3 <- feols(
-  fml = transactions_log ~ intro_dao_start_prop | dapp_name + date,
+  fml = transactions_log ~ intro_dao_end_prop | dapp_name + date,
   panel.id=c('dapp_name', 'date'), 
   vcov = "NW", #alternative idd, cluster, or twoway, NW
   data = df.panel
 )
 
 model_with_fe_4 <- feols(
-  fml = eoa_log ~ intro_dao_start_prop | dapp_name + date,
+  fml = eoa_log ~ intro_dao_end_prop | dapp_name + date,
   panel.id=c('dapp_name', 'date'), 
   vcov = "NW", #alternative idd, cluster, or twoway, NW
   data = df.panel
@@ -231,7 +269,7 @@ model_with_fe_4 <- feols(
 
 
 # data.frame output
-df <- etable(list(model_with_fe), tex=FALSE, dict = c(intro_dao_start_prop = "DiD_start"))
+df <- etable(list(model_with_fe_1, model_with_fe_2, model_with_fe_3, model_with_fe_4), tex=FALSE, dict = c(intro_dao_start_prop = "DiD_start_prop", intro_dao_pro_prop = "DiD_end_prop"))
 
 
 df
