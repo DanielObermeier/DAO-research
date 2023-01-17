@@ -194,7 +194,7 @@ df.panel_ymonth_grouped <- df.panel_ymonth %>% group_by(yearmonth, yearmonth_int
 df.panel_ymonth <- merge(df.panel_ymonth, df.panel_ymonth_grouped, by.x = c("treat_yearmonth"), by.y = c("yearmonth"), all.x = TRUE)
 
 # rename variables
-names(df.panel_ymonth)[names(df.panel_ymonth) == "yearmonth_int.x"] <- "yearqtr_int"
+names(df.panel_ymonth)[names(df.panel_ymonth) == "yearmonth_int.x"] <- "yearmonth_int"
 names(df.panel_ymonth)[names(df.panel_ymonth) == "yearmonth_int.y"] <- "treat_yearmonth_int"
 
 
@@ -350,7 +350,7 @@ Link to tutorial: https://cran.r-project.org/web/packages/did/vignettes/did-basi
 Estimate cohort specific atts
 ```{r}
 
-mw.attgt <- att_gt(yname = "sum_txn_log",
+mw.attgt_qtr <- att_gt(yname = "sum_txn_log",
                    gname = "treated_yearqtr_int",
                    idname = "dapp_id",
                    tname = "yearqtr_int",
@@ -359,20 +359,20 @@ mw.attgt <- att_gt(yname = "sum_txn_log",
                    # control_group = "notyettreated" # includes not yet treated into the control groups 
                    )
 
-summary(mw.attgt)
+summary(mw.attgt_qrt)
 
 
 # set ylim so that all plots have the same scale along y-axis
-ggdid(mw.attgt, ylim = c(-.1,.1))
+ggdid(mw.attgt_qtr, ylim = c(-.1,.1))
 
 ```
 Aggregate cohort specific atts
 ```{r}
 
-mw.dyn <- aggte(mw.attgt, type = "dynamic")
-summary(mw.dyn)
+mw.dyn <- aggte(mw.attgt_qtr, type = "dynamic")
+summary(mw.attgt_qtr)
 
-ggdid(mw.dyn, ylim = c(-.3,.3))
+ggdid(mw.attgt_qtr, ylim = c(-.3,.3))
 
 ```
 
@@ -383,19 +383,43 @@ ggdid(mw.dyn, ylim = c(-.3,.3))
 
 ```{r}
 
-mw.simple <- aggte(mw.attgt, type = "simple")
-summary(mw.simple)
+mw.simple_qtr <- aggte(mw.attgt_qtr, type = "simple")
+summary(mw.simple_qtr)
 
 #ggdid(mw.simple, ylim = c(-.3,.3))
 
 
-mw.dyn <- aggte(mw.attgt, type = "dynamic")
-summary(mw.dyn)
+mw.dyn_qtr <- aggte(mw.attgt_qtr, type = "dynamic")
+summary(mw.dyn_qtr)
 
-ggdid(mw.dyn, ylim = c(-.3,.3))
+ggdid(mw.dyn_qtr, ylim = c(-.3,.3))
 
 
 ```
+
+
+```{r}
+
+mw.attgt_ymnth <- att_gt(yname = "sum_txn_log",
+                   gname = "treat_yearmonth_int",
+                   idname = "dapp_id",
+                   tname = "yearmonth_int",
+                   xformla = ~1,
+                   data = df.panel_ymonth,
+                   # control_group = "notyettreated" # includes not yet treated into the control groups 
+                   )
+
+summary(mw.attgt_ymnth)
+
+
+# set ylim so that all plots have the same scale along y-axis
+ggdid(mw.attgt_ymnth, ylim = c(-.1,.1))
+
+
+```
+
+
+
 
 
 ## Analysis by category of dApps
