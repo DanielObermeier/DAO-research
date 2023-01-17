@@ -347,19 +347,36 @@ Link to tutorial: https://cran.r-project.org/web/packages/did/vignettes/did-basi
 
 ## Compute DiD
 
+Estimate cohort specific atts
 ```{r}
 
-mw.attgt <- att_gt(yname = "avg_eoa",
-                   gname = "treat_yearqtr_int",
+mw.attgt <- att_gt(yname = "sum_txn_log",
+                   gname = "treated_yearqtr_int",
                    idname = "dapp_id",
                    tname = "yearqtr_int",
                    xformla = ~1,
                    data = df.panel_yqtr,
+                   # control_group = "notyettreated" # includes not yet treated into the control groups 
                    )
 
 summary(mw.attgt)
 
+
+# set ylim so that all plots have the same scale along y-axis
+ggdid(mw.attgt, ylim = c(-.1,.1))
+
 ```
+Aggregate cohort specific atts
+```{r}
+
+mw.dyn <- aggte(mw.attgt, type = "dynamic")
+summary(mw.dyn)
+
+ggdid(mw.dyn, ylim = c(-.3,.3))
+
+```
+
+
 
 
 ### Aggregate treatment effects
