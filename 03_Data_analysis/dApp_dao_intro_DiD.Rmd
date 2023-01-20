@@ -312,9 +312,63 @@ df
 
 ```
 
+### results for Defi dApps only
+```{r}
+
+# filter Defi dApps
+df.panel.defi <- df.panel %>% filter(category == "DeFi")
+
+# fe model with fixest
+model_defi_with_fe_1 <- feols(
+  fml = transactions_log ~ intro_dao_start_prop | dapp_name + date,
+  panel.id=c('dapp_name', 'date'), 
+  vcov = "NW", #alternative idd, cluster, or twoway, NW
+  data = df.panel.defi
+)
+
+model_defi_with_fe_2 <- feols(
+  fml = eoa_log ~ intro_dao_start_prop | dapp_name + date,
+  panel.id=c('dapp_name', 'date'), 
+  vcov = "NW", #alternative idd, cluster, or twoway, NW
+  data = df.panel.defi
+)
+
+
+model_defi_with_fe_3 <- feols(
+  fml = transactions_log ~ intro_dao_end_prop | dapp_name + date,
+  panel.id=c('dapp_name', 'date'), 
+  vcov = "NW", #alternative idd, cluster, or twoway, NW
+  data = df.panel.defi
+)
+
+model_defi_with_fe_4 <- feols(
+  fml = eoa_log ~ intro_dao_end_prop | dapp_name + date,
+  panel.id=c('dapp_name', 'date'), 
+  vcov = "NW", #alternative idd, cluster, or twoway, NW
+  data = df.panel.defi
+)
+
+
+
+# create table output
+#modelsummary(model_with_fe)
+
+
+# data.frame output
+df_defi <- etable(list(model_defi_with_fe_1, model_defi_with_fe_2, model_defi_with_fe_3, model_defi_with_fe_4), tex=FALSE, dict = c(intro_dao_start_prop = "DiD_start_prop", intro_dao_pro_prop = "DiD_end_prop"))
+
+
+df_defi
+# Latex output
+#etable(list(model1, model2), tex=TRUE)
+
+```
+
+
 
 
 ## Decomposition of TWFE in all 2x2 estimates and their weights
+Use the bacon command from the bacondecomp package
 https://cran.r-project.org/web/packages/bacondecomp/vignettes/bacon.html
 ```{r}
 
@@ -427,4 +481,12 @@ ggdid(mw.attgt_ymnth, ylim = c(-.1,.1))
 ```{r}
 
 ```
+
+
+
+
+
+
+
+
 
