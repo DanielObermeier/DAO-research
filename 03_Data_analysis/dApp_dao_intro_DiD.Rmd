@@ -301,6 +301,7 @@ model_with_fe_4 <- feols(
 # create table output
 #modelsummary(model_with_fe)
 
+summary(model_with_fe_1)
 
 # data.frame output
 df <- etable(list(model_with_fe_1, model_with_fe_2, model_with_fe_3, model_with_fe_4), tex=FALSE, dict = c(intro_dao_start_prop = "DiD_start_prop", intro_dao_pro_prop = "DiD_end_prop"))
@@ -349,6 +350,7 @@ model_defi_with_fe_4 <- feols(
 )
 
 
+summary(model_defi_with_fe_1)
 
 # create table output
 #modelsummary(model_with_fe)
@@ -413,34 +415,20 @@ mw.attgt_qtr <- att_gt(yname = "sum_txn_log",
                    # control_group = "notyettreated" # includes not yet treated into the control groups 
                    )
 
-summary(mw.attgt_qrt)
+summary(mw.attgt_qtr)
 
 
 # set ylim so that all plots have the same scale along y-axis
 ggdid(mw.attgt_qtr, ylim = c(-.1,.1))
 
 ```
-Aggregate cohort specific atts
-```{r}
 
-mw.dyn <- aggte(mw.attgt_qtr, type = "dynamic")
-summary(mw.attgt_qtr)
-
-ggdid(mw.attgt_qtr, ylim = c(-.3,.3))
-
-```
-
-
-
-
-### Aggregate treatment effects
+Aggregate cohort specific treatment effects
 
 ```{r}
 
 mw.simple_qtr <- aggte(mw.attgt_qtr, type = "simple")
 summary(mw.simple_qtr)
-
-#ggdid(mw.simple, ylim = c(-.3,.3))
 
 
 mw.dyn_qtr <- aggte(mw.attgt_qtr, type = "dynamic")
@@ -451,6 +439,8 @@ ggdid(mw.dyn_qtr, ylim = c(-.3,.3))
 
 ```
 
+
+Repeat analysis with monthly aggregation
 
 ```{r}
 
@@ -473,6 +463,21 @@ ggdid(mw.attgt_ymnth, ylim = c(-.1,.1))
 ```
 
 
+Aggregate cohort specific treatment effects
+
+```{r}
+
+mw.simple_ymnth <- aggte(mw.attgt_ymnth, type = "simple")
+summary(mw.simple_ymnth)
+
+
+mw.dyn_ymnth <- aggte(mw.attgt_ymnth, type = "dynamic")
+summary(mw.dyn_ymnth)
+
+ggdid(mw.dyn_ymnth, ylim = c(-.3,.3))
+
+
+```
 
 
 
