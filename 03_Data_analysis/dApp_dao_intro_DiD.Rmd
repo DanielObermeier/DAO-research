@@ -570,6 +570,29 @@ summary(dao.dyn_ymonth_filtered)
 
 
 
+# 2-stage DiD following Gardner (2021)
+
+Link to vignette: https://cran.r-project.org/web/packages/did2s/vignettes/Two-Stage-Difference-in-Differences.html
+
+did2s() function to compute 2-stage did
+arguments:
+  - yname:Formula indicating the first stage. The outcome variable.
+  - first_stage: This can include fixed effects and covariates, but do not include treatment variable(s)! For efficiency, it is recommended to use the fixest convention of specifying fixed effects after a vertical bar. For example, ~ x1 + x2 | fe1 + fe2
+  - second_stage
+  - treatment
+
+```{r}
+dao_static_did <- did2s(df.panel, 
+                      yname = "transactions_log", 
+                      first_stage = ~ 0 | dapp_name + date_key, 
+                      second_stage = ~i(intro_dao_start_prop, ref=FALSE), 
+                      treatment = "intro_dao_start_prop", 
+                      cluster_var = "dapp_name")
+
+fixest::esttable(dao_static_did)
+
+```
+
 
 
 
