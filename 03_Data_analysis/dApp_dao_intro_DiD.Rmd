@@ -402,11 +402,11 @@ Link to tutorial: https://cran.r-project.org/web/packages/did/vignettes/did-basi
 
 
 ## Compute DiD
-
+### Quarterly aggregation
 Estimate cohort specific atts
 ```{r}
 
-mw.attgt_qtr <- att_gt(yname = "sum_txn_log",
+dao.attgt_qtr <- att_gt(yname = "sum_txn_log",
                    gname = "treated_yearqtr_int",
                    idname = "dapp_id",
                    tname = "yearqtr_int",
@@ -415,11 +415,11 @@ mw.attgt_qtr <- att_gt(yname = "sum_txn_log",
                    # control_group = "notyettreated" # includes not yet treated into the control groups 
                    )
 
-summary(mw.attgt_qtr)
+summary(dao.attgt_qtr)
 
 
 # set ylim so that all plots have the same scale along y-axis
-ggdid(mw.attgt_qtr, ylim = c(-.1,.1))
+ggdid(dao.attgt_qtr, ylim = c(-.1,.1))
 
 ```
 
@@ -427,24 +427,63 @@ Aggregate cohort specific treatment effects
 
 ```{r}
 
-mw.simple_qtr <- aggte(mw.attgt_qtr, type = "simple")
-summary(mw.simple_qtr)
+dao.simple_qtr <- aggte(dao.attgt_qtr, type = "simple")
+summary(dao.simple_qtr)
 
 
-mw.dyn_qtr <- aggte(mw.attgt_qtr, type = "dynamic")
-summary(mw.dyn_qtr)
+dao.dyn_qtr <- aggte(dao.attgt_qtr, type = "dynamic")
+summary(dao.dyn_qtr)
 
-ggdid(mw.dyn_qtr, ylim = c(-.3,.3))
+ggdid(dao.dyn_qtr, ylim = c(-.3,.3))
+
+
+```
+Filter out small groups (n<5) -> group 2,10 and repeat analysis 
+
+```{r}
+# filter out treatment cohort 2 and 10 as they are too small
+df.panel_yqtr_filtered <- df.panel_yqtr %>% filter(!treated_yearqtr_int %in% c(2,10))
+
+dao.attgt_qtr_filtered <- att_gt(yname = "sum_txn_log",
+                   gname = "treated_yearqtr_int",
+                   idname = "dapp_id",
+                   tname = "yearqtr_int",
+                   xformla = ~1,
+                   data = df.panel_yqtr_filtered,
+                   # control_group = "notyettreated" # includes not yet treated into the control groups 
+                   )
+
+summary(dao.attgt_qtr_filtered)
+
+
+# set ylim so that all plots have the same scale along y-axis
+ggdid(dao.attgt_qtr_filtered, ylim = c(-.3,.3))
+
+
+
+# aggregate ATTs
+dao.simple_qtr_filtered <- aggte(dao.attgt_qtr_filtered, type = "simple")
+summary(dao.simple_qtr_filtered)
+
+
+dao.dyn_qtr_filtered <- aggte(dao.attgt_qtr_filtered, type = "dynamic",  balance_e = 3)
+summary(dao.dyn_qtr_filtered)
+
+ggdid(dao.dyn_qtr_filtered, ylim = c(-.3,.3))
 
 
 ```
 
 
-Repeat analysis with monthly aggregation
 
+
+
+
+### Monthly aggregation
+Repeat analysis with monthly aggregation
 ```{r}
 
-mw.attgt_ymnth <- att_gt(yname = "sum_txn_log",
+dao.attgt_ymnth <- att_gt(yname = "sum_txn_log",
                    gname = "treat_yearmonth_int",
                    idname = "dapp_id",
                    tname = "yearmonth_int",
@@ -453,11 +492,11 @@ mw.attgt_ymnth <- att_gt(yname = "sum_txn_log",
                    # control_group = "notyettreated" # includes not yet treated into the control groups 
                    )
 
-summary(mw.attgt_ymnth)
+summary(dao.attgt_ymnth)
 
 
 # set ylim so that all plots have the same scale along y-axis
-ggdid(mw.attgt_ymnth, ylim = c(-.1,.1))
+ggdid(dao.attgt_ymnth, ylim = c(-.1,.1))
 
 
 ```
@@ -467,15 +506,56 @@ Aggregate cohort specific treatment effects
 
 ```{r}
 
-mw.simple_ymnth <- aggte(mw.attgt_ymnth, type = "simple")
-summary(mw.simple_ymnth)
+dao.simple_ymnth <- aggte(dao.attgt_ymnth, type = "simple")
+summary(dao.simple_ymnth)
 
 
-mw.dyn_ymnth <- aggte(mw.attgt_ymnth, type = "dynamic")
-summary(mw.dyn_ymnth)
+mw.dyn_ymnth <- aggte(dao.attgt_ymnth, type = "dynamic")
+summary(dao.dyn_ymnth)
 
-ggdid(mw.dyn_ymnth, ylim = c(-.3,.3))
+ggdid(dao.dyn_ymnth, ylim = c(-.3,.3))
 
+
+```
+Filter out small groups (n<5) -> group 4,7,8,17,18,19,21,23,25,26,27,28,30 and repeat analysis 
+
+```{r}
+# filter out treatment cohort 2 and 10 as they are too small
+df.panel_ymonth_filtered <- df.panel_ymonth %>% filter(!treat_yearmonth_int %in% c(4,7,8,17,18,19,21,23,25,26,27,28,30))
+
+dao.attgt_ymonth_filtered <- att_gt(yname = "sum_txn_log",
+                   gname = "treat_yearmonth_int",
+                   idname = "dapp_id",
+                   tname = "yearmonth_int",
+                   xformla = ~1,
+                   data = df.panel_ymonth_filtered,
+                   # control_group = "notyettreated" # includes not yet treated into the control groups 
+                   )
+
+summary(dao.attgt_ymonth_filtered)
+
+
+# set ylim so that all plots have the same scale along y-axis
+ggdid(dao.attgt_ymonth_filtered, ylim = c(-.3,.3))
+
+
+
+# aggregate ATTs
+dao.simple_ymonth_filtered <- aggte(dao.attgt_ymonth_filtered, type = "simple")
+summary(dao.simple_ymonth_filtered)
+
+
+dao.dyn_ymonth_filtered <- aggte(dao.attgt_ymonth_filtered, type = "dynamic",  balance_e=5)
+summary(dao.dyn_ymonth_filtered)
+
+ggdid(dao.dyn_ymonth_filtered, ylim = c(-.3,.3))
+
+
+```
+
+```{r}
+
+summary(dao.dyn_ymonth_filtered)
 
 ```
 
