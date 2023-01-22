@@ -27,6 +27,7 @@ library(modelsummary) # alternative to stargazer
 library(etable)
 library(ggplot2)
 library(ggthemes)
+library(lubridate)
 
 ```
 
@@ -93,6 +94,19 @@ df.panel <- df.panel %>% mutate(treated = case_when(!is.na(start_first_prop)~1,
 ```
 
 
+Create variable that measures time distance to treatment (used for dynamic event study)
+```{r}
+
+
+df.panel <- df.panel %>% group_by(dapp_name) %>% mutate(days_rel_to_treatment = date - date[date == start_first_prop])
+# convert daysdiff to numeric value
+df.panel$days_rel_to_treatment <- as.numeric(df.panel$days_rel_to_treatment)
+# replace NA with -Inf
+df.panel$days_rel_to_treatment[is.na(df.panel$days_rel_to_treatment)] <- Inf
+
+```
+
+
 
 Clean the data 
 ```{r}
@@ -107,6 +121,12 @@ df.panel <- df.panel %>% distinct(dapp_name, date_key, .keep_all = TRUE)
 # Filter dApps with no category
 # filter row with empty categories (might be caused by special characters)
 df.panel <- df.panel %>% filter(category != "")
+
+
+# filter out observations were the dApp was not active (probably not founded yet
+df.panel <- df.panel %>% group_by(dapp_name) %>% arrange(date) %>% mutate(txn_cumsum = cumsum(transactions))
+df.panel <- df.panel %>% filter(txn_cumsum > 0)
+
 
 ```
 
@@ -581,6 +601,7 @@ arguments:
   - second_stage
   - treatment
 
+## Static specifiction
 ```{r}
 dao_static_did <- did2s(df.panel, 
                       yname = "transactions_log", 
@@ -593,6 +614,35 @@ fixest::esttable(dao_static_did)
 
 ```
 
+
+
+
+## Dynamic (event study) specification
+Dynamic specification should account for a changing treatment with the exposure to the treatment
+```{r}
+
+
+dao_dynamic_did = df.panel %>% filter(category == "Social") %>% did2s(data = ., 
+                                                                    yname = "transactions_log", 
+                                                                    treatment = "intro_dao_start_prop",
+                                                                    first_stage = ~ 0 | dapp_name + date_key,
+                                                                    second_stage = ~ i(days_rel_to_treatment, ref = c(-1, Inf)),
+                                                                    cluster_var = "dapp_name", verbose = FALSE)
+
+  
+```
+
+
+
+
+```{r}
+fixest::iplot(dao_dynamic_did, main = "Event study: Staggered treatment",
+xlab = "Relative time to treatment", col = "steelblue",
+ref.line = -0.5)
+
+
+
+```
 
 
 
