@@ -28,6 +28,7 @@ library(etable)
 library(ggplot2)
 library(ggthemes)
 library(lubridate)
+library(did2s)
 
 ```
 
@@ -623,6 +624,21 @@ fixest::esttable(dao_static_did)
 ```
 
 
+Only for DeFi dApps + limot post period to 400 days
+```{r}
+dao_static_did_defi <- df.panel %>% filter(category == "DeFi")  %>% did2s(data = .,  #  %>% filter(abs(days_rel_to_treatment) <= 700 | days_rel_to_treatment ==  Inf )
+                      yname = "transactions_log", 
+                      first_stage = ~ 0 | dapp_name + date, 
+                      second_stage = ~i(intro_dao_start_prop, ref=FALSE), 
+                      treatment = "intro_dao_start_prop", 
+                      cluster_var = "dapp_name")
+
+fixest::esttable(dao_static_did_defi)
+
+
+```
+
+
 
 
 ## Dynamic (event study) specification
@@ -630,40 +646,21 @@ Dynamic specification should account for a changing treatment with the exposure 
 ```{r}
 
 
-
-dao_dynamic_did <- df.panel %>% filter(category == "DeFi") %>% filter(abs(days_rel_to_treatment) <= 400)  %>% did2s(data = ., 
+dao_dynamic_did_defi <- df.panel %>% filter(category == "DeFi")%>% filter(abs(days_rel_to_treatment) <= 300 | days_rel_to_treatment ==  Inf) %>% did2s(data = ., # %>% filter(abs(days_rel_to_treatment) <= 400) 
                                                                     yname = "transactions_log", 
                                                                     treatment = "intro_dao_start_prop",
                                                                     first_stage = ~ 0 | dapp_name + date_key,
                                                                     second_stage = ~ i(days_rel_to_treatment, ref = c(-1, Inf)),
                                                                     cluster_var = "dapp_name", verbose = FALSE)
 
-  
-```
 
-```{r}
-dao_static_did <- df.panel %>% filter(category == "DeFi")  %>% filter(abs(days_rel_to_treatment) <= 400)   %>% did2s(data = ., 
-                      yname = "transactions_log", 
-                      first_stage = ~ 0 | dapp_name + date_key, 
-                      second_stage = ~i(intro_dao_start_prop, ref=FALSE), 
-                      treatment = "intro_dao_start_prop", 
-                      cluster_var = "dapp_name")
-
-fixest::esttable(dao_static_did)
-
-
-```
-
-
-
-```{r}
 fixest::iplot(dao_dynamic_did, main = "Event study: Staggered treatment",
 xlab = "Relative time to treatment", col = "steelblue",
 ref.line = -0.5)
-
-
-
+  
 ```
+
+
 
 
 
