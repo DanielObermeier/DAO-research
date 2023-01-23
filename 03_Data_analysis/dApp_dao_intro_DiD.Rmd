@@ -643,26 +643,126 @@ fixest::esttable(dao_static_did_defi)
 
 ## Dynamic (event study) specification
 Dynamic specification should account for a changing treatment with the exposure to the treatment
+
+
+
+Preparation
+The following category specific dynamic effect consume too much RAM. Therefore, you must free as much RAM as possible. 
+```{r}
+# select specific variables to free RAM
+df.panel <- df.panel %>% select(dapp_name, date, category, transactions_log, intro_dao_start_prop, days_rel_to_treatment)
+
+memory.limit(size = 12000) # used t obe 7932 
+
+```
+
+Overall
+!!! currently not possible due to RAM limitations !!!
 ```{r}
 
-
-dao_dynamic_did_defi <- df.panel %>% filter(category == "DeFi")%>% filter(abs(days_rel_to_treatment) <= 300 | days_rel_to_treatment ==  Inf) %>% did2s(data = ., # %>% filter(abs(days_rel_to_treatment) <= 400) 
+dao_dynamic_did <- df.panel %>% filter(abs(days_rel_to_treatment) <= 600 | days_rel_to_treatment ==  Inf) %>% did2s(data = ., # %>% filter(abs(days_rel_to_treatment) <= 400) 
                                                                     yname = "transactions_log", 
                                                                     treatment = "intro_dao_start_prop",
-                                                                    first_stage = ~ 0 | dapp_name + date_key,
+                                                                    first_stage = ~ 0 | dapp_name + date,
                                                                     second_stage = ~ i(days_rel_to_treatment, ref = c(-1, Inf)),
                                                                     cluster_var = "dapp_name", verbose = FALSE)
+
+#Exchanges, DeFi, Collectibles
 
 
 fixest::iplot(dao_dynamic_did, main = "Event study: Staggered treatment",
 xlab = "Relative time to treatment", col = "steelblue",
 ref.line = -0.5)
-  
+
+
 ```
 
 
 
+Defi
+```{r}
+
+
+dao_dynamic_did_defi <- df.panel %>% filter(category == "DeFi") %>% filter(abs(days_rel_to_treatment) <= 600 | days_rel_to_treatment ==  Inf) %>% did2s(data = ., # %>% filter(abs(days_rel_to_treatment) <= 400) 
+                                                                    yname = "transactions_log", 
+                                                                    treatment = "intro_dao_start_prop",
+                                                                    first_stage = ~ 0 | dapp_name + date,
+                                                                    second_stage = ~ i(days_rel_to_treatment, ref = c(-1, Inf)),
+                                                                    cluster_var = "dapp_name", verbose = FALSE)
+
+#Exchanges, DeFi, Collectibles
+
+
+fixest::iplot(dao_dynamic_did_defi, main = "Event study: Staggered treatment",
+xlab = "Relative time to treatment", col = "steelblue",
+ref.line = -0.5)
+  
+```
+
+Collectibles
+```{r}
+
+dao_dynamic_did_collect <- df.panel %>% filter(category == "Collectibles") %>% filter(abs(days_rel_to_treatment) <= 300 | days_rel_to_treatment ==  Inf) %>% did2s(data = ., # %>% filter(abs(days_rel_to_treatment) <= 400) 
+                                                                    yname = "transactions_log", 
+                                                                    treatment = "intro_dao_start_prop",
+                                                                    first_stage = ~ 0 | dapp_name + date,
+                                                                    second_stage = ~ i(days_rel_to_treatment, ref = c(-1, Inf)),
+                                                                    cluster_var = "dapp_name", verbose = FALSE)
+
+#Exchanges, DeFi, Collectibles
+
+
+fixest::iplot(dao_dynamic_did_collect, main = "Event study: Staggered treatment",
+xlab = "Relative time to treatment", col = "steelblue",
+ref.line = -0.5)
 
 
 
+```
+
+Exchanges
+```{r}
+
+dao_dynamic_did_exch <- df.panel %>% filter(category == "Exchanges") %>% filter(abs(days_rel_to_treatment) <= 300 | days_rel_to_treatment ==  Inf) %>% did2s(data = ., # %>% filter(abs(days_rel_to_treatment) <= 400) 
+                                                                    yname = "transactions_log", 
+                                                                    treatment = "intro_dao_start_prop",
+                                                                    first_stage = ~ 0 | dapp_name + date,
+                                                                    second_stage = ~ i(days_rel_to_treatment, ref = c(-1, Inf)),
+                                                                    cluster_var = "dapp_name", verbose = FALSE)
+
+#Exchanges, DeFi, Collectibles
+
+
+fixest::iplot(dao_dynamic_did_exch, main = "Event study: Staggered treatment",
+xlab = "Relative time to treatment", col = "steelblue",
+ref.line = -0.5)
+  
+
+
+
+```
+
+
+```{r}
+
+df.panel %>% filter(category == "Exchanges" & intro_dao_start_prop == 1) %>% group_by(dapp_name, category) %>% summarise()
+
+```
+
+
+### Plot event study and all different estimates with did2 package
+
+only works with quarterly aggregated data as a group variables is required
+```{r}
+event_studies = df.panel_yqtr %>% event_study(
+                            data = ., 
+                            yname = "sum_txn_log", 
+                            idname = "dapp_id",
+                            tname = "yearqtr_int", 
+                            gname = "treated_yearqtr_int"
+                            )
+
+
+
+```
 
