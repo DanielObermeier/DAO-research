@@ -622,7 +622,8 @@ Dynamic specification should account for a changing treatment with the exposure 
 ```{r}
 
 
-dao_dynamic_did = df.panel %>% filter(category == "Social") %>% did2s(data = ., 
+
+dao_dynamic_did <- df.panel %>% filter(category == "DeFi") %>% filter(abs(days_rel_to_treatment) <= 400)  %>% did2s(data = ., 
                                                                     yname = "transactions_log", 
                                                                     treatment = "intro_dao_start_prop",
                                                                     first_stage = ~ 0 | dapp_name + date_key,
@@ -632,6 +633,18 @@ dao_dynamic_did = df.panel %>% filter(category == "Social") %>% did2s(data = .,
   
 ```
 
+```{r}
+dao_static_did <- df.panel %>% filter(category == "DeFi")  %>% filter(abs(days_rel_to_treatment) <= 400)   %>% did2s(data = ., 
+                      yname = "transactions_log", 
+                      first_stage = ~ 0 | dapp_name + date_key, 
+                      second_stage = ~i(intro_dao_start_prop, ref=FALSE), 
+                      treatment = "intro_dao_start_prop", 
+                      cluster_var = "dapp_name")
+
+fixest::esttable(dao_static_did)
+
+
+```
 
 
 
