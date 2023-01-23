@@ -1,2 +1,6 @@
 *.csv
 *.db
+*.png
+*.RData
+.RData
+.Rhistory

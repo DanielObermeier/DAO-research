@@ -236,18 +236,24 @@ df.panel_ymonth$dapp_id <- with(df.panel_ymonth, as.integer(factor(dapp_name, le
 # Descriptive statistics
 ```{r}
 
+options(repr.plot.width = 2, repr.plot.height =4)
+
+# plot dapps by category
+df.panel.dapps_by_category <- df.panel %>% group_by(dapp_name, category) %>% summarise() %>% group_by(category) %>% summarise(dapps_count = n( ))
+df.panel.dapps_by_category %>% ggplot(aes(x = reorder(category, -dapps_count), y = dapps_count, label = dapps_count)) + geom_bar(stat = "identity", fill = "blue") + geom_text(size = 3, vjust=-0.5) + theme_tufte() +theme(axis.text.x = element_text(size = 18, angle = 90, vjust = 0.5, hjust=1))
+
 # treated dapps per month
 df.panel.grouped_category <- df.panel %>% group_by(dapp_name, category) %>% summarise(treated = mean(treated)) %>% group_by(category) %>% summarise(treated = sum(treated)) %>% arrange(desc(treated))
 df.panel.grouped_category %>% ggplot(aes(x = reorder(category, -treated), y = treated, label = treated)) + geom_bar(stat = "identity", fill = "blue") + geom_text(size = 3, vjust=-0.5) + theme_tufte() +theme(axis.text.x = element_text(size = 18, angle = 90, vjust = 0.5, hjust=1)) # + theme_tufte()
 
 # treated units by month 
-df.panel.grouped_month <- df.panel %>% filter(!is.na(treat_yearqtr)) %>% group_by(dapp_name, treat_yearqtr) %>% summarise(treated = mean(treated)) %>% group_by(treat_yearqtr) %>% summarise(treated = sum(treated)) 
-df.panel.grouped_month %>% ggplot(aes(x = treat_yearqtr, y = treated, label = treated)) + geom_bar(stat = "identity", fill = "blue") + geom_text(size = 3, vjust=-0.5) + theme_tufte() +theme(axis.text.x = element_text(size = 15, angle = 90, vjust = 0.5, hjust=1))
+df.panel.grouped_quarter <- df.panel %>% filter(!is.na(treat_yearqtr)) %>% group_by(dapp_name, treat_yearqtr) %>% summarise(treated = mean(treated)) %>% group_by(treat_yearqtr) %>% summarise(treated = sum(treated)) 
+df.panel.grouped_quarter %>% ggplot(aes(x = treat_yearqtr, y = treated, label = treated)) + geom_bar(stat = "identity", fill = "blue") + geom_text(size = 3, vjust=-0.5) + theme_tufte() +theme(axis.text.x = element_text(size = 15, angle = 90, vjust = 0.5, hjust=1))
 
 
 # treated units by month 
-df.panel.grouped_quarter <- df.panel %>% filter(!is.na(treat_yearmonth)) %>% group_by(dapp_name, treat_yearmonth) %>% summarise(treated = mean(treated)) %>% group_by(treat_yearmonth) %>% summarise(treated = sum(treated)) 
-df.panel.grouped_quarter %>% ggplot(aes(x = treat_yearmonth, y = treated, label = treated)) + geom_bar(stat = "identity", fill = "blue") + geom_text(size = 3, vjust=-0.5) + theme_tufte() +theme(axis.text.x = element_text(size = 15, angle = 90, vjust = 0.5, hjust=1))
+df.panel.grouped_month <- df.panel %>% filter(!is.na(treat_yearmonth)) %>% group_by(dapp_name, treat_yearmonth) %>% summarise(treated = mean(treated)) %>% group_by(treat_yearmonth) %>% summarise(treated = sum(treated)) 
+df.panel.grouped_month %>% ggplot(aes(x = treat_yearmonth, y = treated, label = treated)) + geom_bar(stat = "identity", fill = "blue") + geom_text(size = 3, vjust=-0.5) + theme_tufte() +theme(axis.text.x = element_text(size = 15, angle = 90, vjust = 0.5, hjust=1))
 
 
 
@@ -439,7 +445,7 @@ summary(dao.attgt_qtr)
 
 
 # set ylim so that all plots have the same scale along y-axis
-ggdid(dao.attgt_qtr, ylim = c(-.1,.1))
+ggdid(dao.attgt_qtr) #, ylim = c(-.1,.1))
 
 ```
 
@@ -447,22 +453,22 @@ Aggregate cohort specific treatment effects
 
 ```{r}
 
-dao.simple_qtr <- aggte(dao.attgt_qtr, type = "simple")
+dao.simple_qtr <- aggte(dao.attgt_qtr, type = "simple", na.rm = TRUE, clustervars = c("dapp_id"))
 summary(dao.simple_qtr)
 
 
-dao.dyn_qtr <- aggte(dao.attgt_qtr, type = "dynamic")
+dao.dyn_qtr <- aggte(dao.attgt_qtr, type = "dynamic", na.rm = TRUE, clustervars = c("dapp_id"))
 summary(dao.dyn_qtr)
 
-ggdid(dao.dyn_qtr, ylim = c(-.3,.3))
+ggdid(dao.dyn_qtr)
 
 
 ```
-Filter out small groups (n<5) -> group 2,10 and repeat analysis 
 
+Filter out small groups (n<5) -> group 1,2,10 and repeat analysis 
 ```{r}
 # filter out treatment cohort 2 and 10 as they are too small
-df.panel_yqtr_filtered <- df.panel_yqtr %>% filter(!treated_yearqtr_int %in% c(2,10))
+df.panel_yqtr_filtered <- df.panel_yqtr %>% filter(!treated_yearqtr_int %in% c(1,2,10))
 
 dao.attgt_qtr_filtered <- att_gt(yname = "sum_txn_log",
                    gname = "treated_yearqtr_int",
@@ -474,23 +480,26 @@ dao.attgt_qtr_filtered <- att_gt(yname = "sum_txn_log",
                    )
 
 summary(dao.attgt_qtr_filtered)
-
-
-# set ylim so that all plots have the same scale along y-axis
-ggdid(dao.attgt_qtr_filtered, ylim = c(-.3,.3))
+ggdid(dao.attgt_qtr_filtered)
 
 
 
 # aggregate ATTs
-dao.simple_qtr_filtered <- aggte(dao.attgt_qtr_filtered, type = "simple")
+dao.simple_qtr_filtered <- aggte(dao.attgt_qtr_filtered, type = "simple", na.rm = TRUE, clustervars = c("dapp_id"))
 summary(dao.simple_qtr_filtered)
 
 
-dao.dyn_qtr_filtered <- aggte(dao.attgt_qtr_filtered, type = "dynamic",  balance_e = 3)
+# dynamic aggregation (effect relative to treatment period)
+dao.dyn_qtr_filtered <- aggte(dao.attgt_qtr_filtered, type = "dynamic", na.rm = TRUE, clustervars = c("dapp_id")) #,  balance_e = 3
 summary(dao.dyn_qtr_filtered)
 
-ggdid(dao.dyn_qtr_filtered, ylim = c(-.3,.3))
+ggdid(dao.dyn_qtr_filtered)
 
+# treatment effect aggregated by group
+dao.group_qtr_filtered <- aggte(dao.attgt_qtr_filtered, type = "group", na.rm = TRUE, clustervars = c("dapp_id")) #,  balance_e = 3
+summary(dao.group_qtr_filtered)
+
+ggdid(dao.group_qtr_filtered)
 
 ```
 
@@ -501,6 +510,7 @@ ggdid(dao.dyn_qtr_filtered, ylim = c(-.3,.3))
 
 ### Monthly aggregation
 Repeat analysis with monthly aggregation
+Probably does not work as groups are too small
 ```{r}
 
 dao.attgt_ymnth <- att_gt(yname = "sum_txn_log",
@@ -516,7 +526,7 @@ summary(dao.attgt_ymnth)
 
 
 # set ylim so that all plots have the same scale along y-axis
-ggdid(dao.attgt_ymnth, ylim = c(-.1,.1))
+ggdid(dao.attgt_ymnth)
 
 
 ```
@@ -526,22 +536,29 @@ Aggregate cohort specific treatment effects
 
 ```{r}
 
-dao.simple_ymnth <- aggte(dao.attgt_ymnth, type = "simple")
+# simple aggregation
+dao.simple_ymnth <- aggte(dao.attgt_ymnth, type = "simple", na.rm = TRUE, clustervars = c("dapp_id"))
 summary(dao.simple_ymnth)
 
-
-mw.dyn_ymnth <- aggte(dao.attgt_ymnth, type = "dynamic")
+# dynamic aggregation relative to treatment
+dao.dyn_ymnth <- aggte(dao.attgt_ymnth, type = "dynamic", na.rm = TRUE, clustervars = c("dapp_id"))
 summary(dao.dyn_ymnth)
 
-ggdid(dao.dyn_ymnth, ylim = c(-.3,.3))
+ggdid(dao.dyn_ymnth)
 
+# aggregation per group
+dap.group_ymnth <- aggte(dao.attgt_ymnth, type = "group", na.rm = TRUE, clustervars = c("dapp_id"))
+summary(dao.dyn_ymnth)
+
+ggdid(dap.group_ymnth)
 
 ```
-Filter out small groups (n<5) -> group 4,7,8,17,18,19,21,23,25,26,27,28,30 and repeat analysis 
 
+
+Filter out small groups (n<5) -> group 9,10,11,13,15,16,17,18,20,21,22,25,27 and repeat analysis 
 ```{r}
 # filter out treatment cohort 2 and 10 as they are too small
-df.panel_ymonth_filtered <- df.panel_ymonth %>% filter(!treat_yearmonth_int %in% c(4,7,8,17,18,19,21,23,25,26,27,28,30))
+df.panel_ymonth_filtered <- df.panel_ymonth %>% filter(!treat_yearmonth_int %in% c(9,10,11,13,15,16,17,18,20,21,22,25,27))
 
 dao.attgt_ymonth_filtered <- att_gt(yname = "sum_txn_log",
                    gname = "treat_yearmonth_int",
@@ -556,37 +573,28 @@ summary(dao.attgt_ymonth_filtered)
 
 
 # set ylim so that all plots have the same scale along y-axis
-ggdid(dao.attgt_ymonth_filtered, ylim = c(-.3,.3))
+ggdid(dao.attgt_ymonth_filtered)
 
 
 
-# aggregate ATTs
-dao.simple_ymonth_filtered <- aggte(dao.attgt_ymonth_filtered, type = "simple")
-summary(dao.simple_ymonth_filtered)
+# simple aggregation
+dao.simple_ymnth <- aggte(dao.attgt_ymonth_filtered, type = "simple", na.rm = TRUE, clustervars = c("dapp_id"))
+summary(dao.simple_ymnth)
 
+# dynamic aggregation relative to treatment
+dao.dyn_ymnth <- aggte(dao.attgt_ymonth_filtered, type = "dynamic", na.rm = TRUE, clustervars = c("dapp_id"))
+summary(dao.dyn_ymnth)
 
-dao.dyn_ymonth_filtered <- aggte(dao.attgt_ymonth_filtered, type = "dynamic",  balance_e=5)
-summary(dao.dyn_ymonth_filtered)
+ggdid(dao.dyn_ymnth)
 
-ggdid(dao.dyn_ymonth_filtered, ylim = c(-.3,.3))
+# aggregation per group
+dap.group_ymnth <- aggte(dao.attgt_ymonth_filtered, type = "group", na.rm = TRUE, clustervars = c("dapp_id"))
+summary(dao.dyn_ymnth)
+
+ggdid(dap.group_ymnth)
 
 
 ```
-
-```{r}
-
-summary(dao.dyn_ymonth_filtered)
-
-```
-
-
-
-## Analysis by category of dApps
-
-```{r}
-
-```
-
 
 
 
